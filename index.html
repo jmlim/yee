@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="piano.css">
+    <style type="text/css">
+        img {
+            display: block;
+            margin: 0px auto;
+        }
+
+        body {
+            background-color: #000;
+        }
+
+        .keyboard_text {
+            text-align: center;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-1.12.4.js" integrity="sha256-Qw82+bXyGq6MydymqBxNPYTaUXXq7c8v3CwiYwLLNXU="
+        crossorigin="anonymous"></script>
+    <script type="text/javascript">
+
+        $(document).ready(function () {
+
+            var startTime = new Date().getTime();
+            var isRecoding = false;
+            var isPlaying = false;
+            var isPause = false;
+
+            var recordingFile = [];
+
+            var keyNotes = {
+        /*a*/ 65: 0, // c
+        /*w*/ 87: 1, // c#
+        /*s*/ 83: 2, // d
+        /*e*/ 69: 3, // d#
+        /*d*/ 68: 4, // e
+        /*f*/ 70: 5, // f
+        /*t*/ 84: 6, // f#  
+        /*g*/ 71: 7, // g
+        /*y*/ 89: 8, // g#  
+        /*h*/ 72: 9, // a
+        /*u*/ 85: 10, // a#  
+        /*j*/ 74: 11, // b
+        /*k*/ 75: 12, // c
+        /*o*/ 79: 13, // c#  
+        /*l*/ 76: 14, // d
+        /*p*/ 80: 15, // d#  
+        /*;*/ 186: 16, // e
+        /*;*/ 59: 16, // e
+        /*,*/ 222: 17, // f
+        /*]*/ 221: 18, // f#  
+        /*enter*/ 13: 19, // g
+        /*b*/ 32: 20, // yee
+            };
+
+            var doremi = {
+                0: 'do',
+                1: 'do_sharp',
+                2: 're',
+                3: 're_sharp',
+                4: 'mi',
+                5: 'fa',
+                6: 'fa_sharp',
+                7: 'so',
+                8: 'so_sharp',
+                9: 'la',
+                10: 'la_sharp',
+                11: 'ti',
+                12: 'do_2',
+                13: 'do_sharp_2',
+                14: 're_2',
+                15: 're_sharp_2',
+                16: 'mi_2',
+                17: 'fa_2',
+                18: 'fa_sharp_2',
+                19: 'so_2',
+                20: 'yee'
+            }
+
+            var timeoutObj;
+            var downKeys = {};
+
+            var $recButton = $('#recButton');
+            var $playButton = $("#play-button");
+            var $pauseButton = $("#pause-button");
+
+            function isModifierKey(evt) {
+                return evt.metaKey || evt.shiftKey || evt.altKey;
+            }
+
+            function playImage(type) {
+                var $yeeImage = $('#yee-image');
+                var headText = '';
+                var length = 5;
+                if (type === 'yee') {
+                    headText = 'yee';
+                    //length += 1;
+                }
+
+                for (var i = 1; i <= length; i += 1) {
+                    (function (x) {
+                        timeoutObj = window.setTimeout(function () {
+                            $yeeImage.attr('src', headText + x + '.png');
+                        }, 70 * x);
+                    })(i);
+                }
+            }
+
+            function playPiano(doremiByKey) {
+                var $keyboard = $("#keyboard_" + doremiByKey);
+                $keyboard.addClass("active");
+                window.setTimeout(function () {
+                    $keyboard.removeClass("active");
+                }, 350);
+            }
+
+            function playSound(key) {
+                if (typeof key != 'undefined') {
+                    console.log('key', key);
+                    var doremiByKey = doremi[key];
+                    if (!doremiByKey) {
+                        return;
+                    }
+                    clearTimeout(timeoutObj);
+                    var sound = $("#" + doremiByKey)[0];
+                    playImage(doremiByKey);
+                    playPiano(doremiByKey);
+                    sound.pause();
+                    sound.currentTime = 0;
+                    sound.play();
+                    // $keys.trigger('note-' + (key + notesShift + notesOffset) + '.play');
+                    if (isRecoding) {
+                        var recodeCode = { "key": key, "delay": (new Date().getTime() - startTime) };
+                        recordingFile.push(recodeCode);
+                    }
+                }
+            }
+
+            function recordPlay() {
+                $.each(recordingFile, function (ind, obj) {
+                    window.setTimeout(function () {
+                        playSound(obj.key);
+                        if (ind === recordingFile.length - 1) {
+                            isPlaying = false;
+                            isPause = false;
+                            $("#play-button").css("display", "inline-block");
+                            $pauseButton.hide();
+                        }
+                    }, obj.delay);
+                });
+            }
+
+            function resize() {
+                var windowWidth = $(window).width();
+                var windowHeight = $(window).height();
+                var pianoHeight = $("#p-wrapper").height();
+                var maxImageHeight = windowHeight - pianoHeight;
+
+                console.log("windowHeight - pianoHeight ", maxImageHeight, windowWidth);
+                // yee image resize
+                var yeeImageWidth = windowWidth > maxImageHeight ? maxImageHeight : windowWidth;
+                var keyWidth = yeeImageWidth / 12;
+                var sharpKeyWidth = keyWidth / 2
+                var $yeeImage = $('#yee-image');
+
+                console.log(windowHeight);
+                $yeeImage.width(yeeImageWidth);
+
+                // yee piano resize
+                $("#p-wrapper").width(yeeImageWidth)
+                    .find("#piano")
+                    .width(yeeImageWidth)
+                    .find("li")
+                    .width(keyWidth).parent()
+                    .find("span")
+                    .width(sharpKeyWidth);
+                $("#yee-wrapper")
+                    .width(yeeImageWidth)
+                    .find("#keyboard_yee")
+                    .width(yeeImageWidth);
+                $("#record-wrapper").width(yeeImageWidth);
+            }
+
+            $(window).keydown(function (evt) {
+                if (isPlaying) {
+                    return false;
+                }
+                var keyCode = evt.keyCode;
+                console.log('keycode', keyCode);
+                // prevent repeating keys
+                if (!downKeys[keyCode] && !isModifierKey(evt)) {
+                    downKeys[keyCode] = 1;
+                    var key = keyNotes[keyCode];
+                    playSound(key);
+                    evt.preventDefault();
+                }
+            }).keyup(function (evt) {
+                delete downKeys[evt.keyCode];
+            });
+
+            $(".piano-keyboard, .yee_button_radius").click(function (evt) {
+                if (isPlaying) {
+                    return false;
+                }
+
+                var val = $(evt.target).data("value");
+                playSound(val);
+                //console.log(val);
+            });
+
+            $playButton.click(function (evt) {
+                if(isRecoding) {
+                    return false;
+                }
+                isPlaying = true;
+                if (!isPause) {
+                    recordPlay();
+                }
+                isPause = false;
+                $pauseButton.css("display", "inline-block");
+                $playButton.hide();
+            });
+
+           /* $pauseButton.click(function (evt) {
+                isPlaying = false;
+                isPause = true;
+                $playButton.css("display", "inline-block");
+                $pauseButton.hide();
+            });*/
+
+            $recButton.addClass("notRec");
+
+            $recButton.click(function () {
+                if (isPlaying) {
+                    return false;
+                }
+                if ($recButton.hasClass('notRec')) {
+                    $recButton.removeClass("notRec");
+                    $recButton.addClass("Rec");
+                    recordingFile = [];
+                    isRecoding = true;
+                    startTime = new Date().getTime();
+                }
+                else {
+                    $recButton.removeClass("Rec");
+                    $recButton.addClass("notRec");
+                    isRecoding = false;
+                    // 녹음 파일 있을 경우 플레이 버튼 보여줌..
+                    if (recordingFile.length > 0) {
+                        $playButton.css("display", "inline-block");
+                    }
+                }
+            });
+
+            $(window).resize(function () {
+                resize();
+            });
+
+            // init 
+            resize();
+        });
+    </script>
+</head>
+
+<body>
+
+    <img id="yee-image" src="1.png" />
+    <audio id="do" src="1.mp3" controls="true" hidden></audio>
+    <audio id="re" src="2.mp3" controls="true" hidden></audio>
+    <audio id="mi" src="3.mp3" controls="true" hidden></audio>
+    <audio id="fa" src="4.mp3" controls="true" hidden></audio>
+    <audio id="so" src="5.mp3" controls="true" hidden></audio>
+    <audio id="la" src="6.mp3" controls="true" hidden></audio>
+    <audio id="ti" src="7.mp3" controls="true" hidden></audio>
+
+    <audio id="do_2" src="8.mp3" controls="true" hidden></audio>
+    <audio id="re_2" src="9.mp3" controls="true" hidden></audio>
+    <audio id="mi_2" src="10.mp3" controls="true" hidden></audio>
+    <audio id="fa_2" src="11.mp3" controls="true" hidden></audio>
+    <audio id="so_2" src="12.mp3" controls="true" hidden></audio>
+
+    <audio id="do_sharp" src="1sharp.mp3" controls="true" hidden></audio>
+    <audio id="re_sharp" src="2sharp.mp3" controls="true" hidden></audio>
+    <audio id="fa_sharp" src="4sharp.mp3" controls="true" hidden></audio>
+    <audio id="so_sharp" src="5sharp.mp3" controls="true" hidden></audio>
+    <audio id="la_sharp" src="6sharp.mp3" controls="true" hidden></audio>
+
+    <audio id="do_sharp_2" src="8sharp.mp3" controls="true" hidden></audio>
+    <audio id="re_sharp_2" src="9sharp.mp3" controls="true" hidden></audio>
+    <audio id="fa_sharp_2" src="11sharp.mp3" controls="true" hidden></audio>
+
+    <audio id="yee" src="yee.mp3" controls="true" hidden></audio>
+
+
+    <div id="p-wrapper">
+        <ul id="piano">
+            <li>
+                <div id="keyboard_do" class="anchor piano-keyboard" data-value="0"></div>
+                <div class="keyboard_text">A</div>
+            </li>
+
+            <li>
+                <span id="keyboard_do_sharp" class="piano-keyboard" data-value="1"></span>
+                <div id="keyboard_re" class="anchor piano-keyboard" data-value="2"></div>
+                <div class="keyboard_text">S</div>
+            </li>
+            <li>
+                <span id="keyboard_re_sharp" class="piano-keyboard" data-value="3"></span>
+                <div id="keyboard_mi" class="anchor piano-keyboard" data-value="4"></div>
+                <div class="keyboard_text">D</div>
+            </li>
+            <li>
+                <div id="keyboard_fa" class="anchor piano-keyboard" data-value="5"></div>
+                <div class="keyboard_text">F</div>
+            </li>
+            <li>
+                <span id="keyboard_fa_sharp" class="piano-keyboard" data-value="6"></span>
+                <div id="keyboard_so" class="anchor piano-keyboard" data-value="7"></div>
+                <div class="keyboard_text">G</div>
+            </li>
+            <li>
+                <span id="keyboard_so_sharp" class="piano-keyboard" data-value="8"></span>
+                <div id="keyboard_la" class="anchor piano-keyboard" data-value="9"></div>
+                <div class="keyboard_text">H</div>
+            </li>
+            <li>
+                <span id="keyboard_la_sharp" class="piano-keyboard" data-value="10"></span>
+                <div id="keyboard_ti" class="anchor piano-keyboard" data-value="11"></div>
+                <div class="keyboard_text">J</div>
+            </li>
+            <li>
+                <div id="keyboard_do_2" class="anchor piano-keyboard" data-value="12"></div>
+                <div class="keyboard_text">K</div>
+            </li>
+            <li>
+                <span id="keyboard_do_sharp_2" class="piano-keyboard" data-value="13"></span>
+                <div id="keyboard_re_2" class="anchor piano-keyboard" data-value="14"></div>
+                <div class="keyboard_text">L</div>
+            </li>
+            <li>
+                <span id="keyboard_re_sharp_2" class="piano-keyboard" data-value="15"></span>
+                <div id="keyboard_mi_2" class="anchor piano-keyboard" data-value="16"></div>
+                <div class="keyboard_text">;</div>
+            </li>
+            <li>
+                <div id="keyboard_fa_2" class="anchor piano-keyboard" data-value="17"></div>
+                <div class="keyboard_text">'</div>
+            </li>
+            <li>
+                <span id="keyboard_fa_sharp_2" class="piano-keyboard" data-value="18"></span>
+                <div id="keyboard_so_2" class="anchor piano-keyboard" data-value="19"></div>
+                <div class="keyboard_text">enter</div>
+            </li>
+        </ul>
+    </div>
+
+    <div id="yee-wrapper">
+        <div id="keyboard_yee" class="yee_button_radius yee_button" data-value="20">Yee (Space)</div>
+    </div>
+    <div id="record-wrapper">
+        <button id="recButton"></button>
+        <div id="play-button" class="play-button"></div>
+        <div id="pause-button" class="pause-button"></div>
+        <div id="stop-button" class="stop-button"></div>
+    </div>
+</body>
+
+</html>
